@@ -1,0 +1,24 @@
+12:56:55 **** Incremental Build of configuration Debug for project boot ****
+make -j3 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F411xE -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:201:10: warning: unused variable 'tl' [-Wunused-variable]
+  201 |   size_t tl = strlen(tw);
+      |          ^~
+arm-none-eabi-gcc -o "boot.elf" @"objects.list"   -mcpu=cortex-m4 -T"/Users/hlovatskyibohdan/STM32CubeIDE/workspace_1.13.0/boot/STM32F411VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="boot.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: boot.elf
+ 
+arm-none-eabi-size   boot.elf 
+arm-none-eabi-objdump -h -S  boot.elf  > "boot.list"
+arm-none-eabi-objcopy  -O binary  boot.elf  "boot.bin"
+   text	   data	    bss	    dec	    hex	filename
+  10372	     20	   1652	  12044	   2f0c	boot.elf
+Finished building: default.size.stdout
+ 
+Finished building: boot.bin
+ 
+Finished building: boot.list
+ 
+
+12:56:58 Build Finished. 0 errors, 1 warnings. (took 3s.486ms)
+

@@ -1,0 +1,2 @@
+bootloader.c:9:6:jumpToApp	24	static,ignoring_inline_asm
+bootloader.c:20:6:deinitEverything	8	static
