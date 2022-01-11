@@ -41,7 +41,7 @@
 /*USER CODE BEGIN PD */
 // 70 kb for programm
 #define MAIN_PROGRAM_START_ADDRESS 0x8060000
-#define MAIN_PROGRAM_END_ADDRESS 0x8130000
+#define MAIN_PROGRAM_END_ADDRESS 0x807FFFF
 #define FW_START 5
 #define FW_READ 1000
 #define FW_WRITE 2000
@@ -84,7 +84,6 @@ void SystemClock_Config(void);
 /*USER CODE BEGIN PFP */
 void myprintf(const char *fmt);
 void ExecMainFW(void);
-void jumpToApp(const uint32_t address);
 /*USER CODE END PFP */
 
 /*Private user code ---------------------------------------------------------*/
@@ -116,9 +115,6 @@ void MY_FLASH_SetSectorAddrs(uint8_t sector, uint32_t addrs)
 void MY_FLASH_WriteN(uint32_t idx, void *wrBuf, uint32_t Nsize, DataTypeDef dataType)
 {
 	uint32_t flashAddress = MY_SectorAddrs + idx;
-
-	//Erase sector before write
-	MY_FLASH_EraseSector();
 
 	//Unlock Flash
 	HAL_FLASH_Unlock();
@@ -216,7 +212,7 @@ int main(void)
 	SystemClock_Config();
 
 	/*USER CODE BEGIN SysInit */
-	HAL_Delay(5000);
+	HAL_Delay(2000);
 	/*USER CODE END SysInit */
 
 	/*Initialize all configured peripherals */
@@ -233,6 +229,7 @@ int main(void)
 
 	// index will be added to offset produced by the beginning sector
 	uint32_t idx = 0;
+	uint32_t firmware_size = 0;
 
 	FATFS FS;
 	FIL F;
@@ -257,8 +254,20 @@ int main(void)
 							f_lseek(&F, 0);
 							myprintf("Updating firmware\n");
 
-							idx = MAIN_PROGRAM_START_ADDRESS;
+							myprintf("Erasing the flash segment\n");
+							myprintf("------------------------------------\n");
+
+							// we choose the last sector, so to make this as safe as possible
+							MY_FLASH_SetSectorAddrs(7, MAIN_PROGRAM_START_ADDRESS);
+							MY_FLASH_EraseSector();
+
+							// TODO: do we need to add here 4 (for vector table relocation);
+							// idx = MAIN_PROGRAM_START_ADDRESS;
+							idx = 0;
 							fw_step = FW_READ + 20;
+
+							firmware_size = f_size(&F);
+							myprintf("Size of firmware: %ld\n", firmware_size);
 						}
 						else
 						{
@@ -274,37 +283,42 @@ int main(void)
 					break;
 				}
 
+
 			case FW_READ + 20:	// Flash Firmware
 				{
 					myprintf("Writing the firmware into flash\n");
 
-					if (idx > MAIN_PROGRAM_END_ADDRESS)
+					if (idx > firmware_size)
 					{
 						myprintf("Done!\n");
 						f_unlink(fileName);
+						// demount the device
+						f_mount(NULL, "", 0);
 						fw_step = FW_FINISH;
 						break;
 					}
 
+					myprintf("Current index: %ld; chunk to write: %d\n", idx, sizeof(fw_buf));
+
 					f_read(&F, &fw_buf, sizeof(fw_buf), (UINT *) &t);
 					if (t != sizeof(fw_buf))
 					{
-						myprintf("Error while reading from sd\n");
-						fw_step = FW_ERROR;
-						break;
+						if (idx + t + sizeof(fw_buf) > firmware_size) {
+							myprintf("Writing last chunk...\n");
+						} else {
+							myprintf("Error while reading from sd, chunk to small: %ld\n", t);
+							fw_step = FW_ERROR;
+							break;
+						}
 					}
 
-					HAL_FLASH_Unlock();
-					// we choose the last sector, so to make this as safe as possible
-					MY_FLASH_SetSectorAddrs(7, MAIN_PROGRAM_START_ADDRESS);
-					MY_FLASH_EraseSector();
 
 					// for(t = 0; t < sizeof(fw_buf); t += 4)
 					//    FLASH_ProgramWord(idx+t, aes_buf[t/4]);
 
-					MY_FLASH_WriteN(idx, fw_buf, sizeof(fw_buf), DATA_TYPE_32);
-					HAL_FLASH_Lock();
+					MY_FLASH_WriteN(idx, fw_buf, sizeof(fw_buf) / sizeof(fw_buf[0]), DATA_TYPE_32);
 
+					// as index is counted in bytes
 					idx += sizeof(fw_buf);
 
 					break;
@@ -374,7 +388,7 @@ void ExecMainFW()
 {
 	// setting jump address, +4 bytes as we need to put the
 	// irq table in the very beginning
-	uint32_t jumpAddress = *(__IO uint32_t *)(MAIN_PROGRAM_START_ADDRESS + 4);
+	// uint32_t jumpAddress = *(__IO uint32_t *)(MAIN_PROGRAM_START_ADDRESS + 4);
 
 	// deinit usart
 	HAL_UART_DeInit(&huart2);
@@ -395,19 +409,12 @@ void ExecMainFW()
 
 
 	__disable_irq();
-	SCB->VTOR = MAIN_PROGRAM_START_ADDRESS;
-	__set_MSP(*(__IO uint32_t *) MAIN_PROGRAM_START_ADDRESS);
+	// NVIC_SetVectorTable(NVIC_VectTab_FLASH, MAIN_PROGRAM_START_ADDRESS);
+	// SCB->VTOR = MAIN_PROGRAM_START_ADDRESS;
+	// __set_MSP(*(__IO uint32_t *) MAIN_PROGRAM_START_ADDRESS);
 
-	jumpToApp(jumpAddress);
-}
-
-void jumpToApp(const uint32_t address)
-{
-	const JumpStruct* vector_p = (JumpStruct*) address;
-
-	/* let's do The Jump! */
-    /* Jump, used asm to avoid stack optimization */
-    asm("msr msp, %0; bx %1;" : : "r"(vector_p->stack_addr), "r"(vector_p->func_p));
+	const JumpStruct* vector_p = (JumpStruct*) MAIN_PROGRAM_START_ADDRESS;
+	asm("msr msp, %0; bx %1;" : : "r"(vector_p->stack_addr), "r"(vector_p->func_p));
 }
 
 /*USER CODE END 4 */
