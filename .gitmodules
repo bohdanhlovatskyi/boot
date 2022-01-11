@@ -1,0 +1,3 @@
+[submodule "boot_ap_exm"]
+	path = boot_ap_exm
+	url = https://github.com/bohdanhlovatskyi/boot_ap_exm.git
