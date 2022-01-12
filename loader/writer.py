@@ -4,20 +4,12 @@ import time
 
 if __name__ == "__main__":
 
-    port = [port.name for port in lp.comports() if "usbserial" in port.name][0]
-    with serial.Serial() as ser:
-        ser.baudrate = 9600
-        ser.port = "/dev/" + port
-        ser.open()
-
+    with open("FIRMWARE3.bin", "wb") as ser:
         ser.write(bytes([48]))
-
         with open("FIRMWARE.bin", "rb") as f:
             while (chunk := f.read(4)):
                 ser.write(chunk)
-                time.sleep(0.05)
-                print("...")
-
+                # time.sleep(0.05)
         b = bytearray()
         b.extend(map(ord, "$END"))
         ser.write(b)
