@@ -76,6 +76,10 @@ void Error_Handler(void);
 #define PH1_OSC_OUT_GPIO_Port GPIOH
 #define OTG_FS_PowerSwitchOn_Pin GPIO_PIN_0
 #define OTG_FS_PowerSwitchOn_GPIO_Port GPIOC
+#define BootPin_Pin GPIO_PIN_1
+#define BootPin_GPIO_Port GPIOC
+#define BootIrq_Pin GPIO_PIN_2
+#define BootIrq_GPIO_Port GPIOC
 #define PDM_OUT_Pin GPIO_PIN_3
 #define PDM_OUT_GPIO_Port GPIOC
 #define I2S3_WS_Pin GPIO_PIN_4
