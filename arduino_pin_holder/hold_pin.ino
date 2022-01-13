@@ -1,5 +1,5 @@
-const byte bootPin = 3;
-const byte interruptPin = 2;
+const byte bootPin = 2;
+const byte interruptPin = 3;
 volatile byte state = LOW;
 
 void setup() {
