@@ -1,6 +1,7 @@
 import serial
 import serial.tools.list_ports as lp
 import time
+import os
 
 if __name__ == "__main__":
 
@@ -10,13 +11,15 @@ if __name__ == "__main__":
         ser.port = "/dev/" + port
         ser.open()
 
-        ser.write(bytes([48]))
+        # ser.write(bytes([48]))
 
+        bw = 0
         with open("FIRMWARE.bin", "rb") as f:
             while (chunk := f.read(4)):
                 ser.write(chunk)
+                bw += 4
                 time.sleep(0.05)
-                print("...")
+                print(f'{bw} / {os.path.getsize("FIRMWARE.bin")}')
 
         b = bytearray()
         b.extend(map(ord, "$END"))
