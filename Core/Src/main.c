@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "fatfs.h"
+#include "rtc.h"
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
@@ -63,8 +64,8 @@ typedef struct
     application_t*	func_p;        // Program Counter
 } JumpStruct;
 
-const char fileName[] = "rtocs.bin";
-const char newFirmware[] = "f.bin";
+char fileName[] = "rtocs.bin";
+char firmwareName[] = "f.bin";
 
 /* USER CODE END PD */
 
@@ -220,6 +221,7 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   MX_USART2_UART_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
 
 	uint32_t t;
@@ -234,14 +236,35 @@ int main(void)
 	FATFS FS;
 	FIL F;
 
-	if (HAL_GPIO_ReadPin(BootPin_GPIO_Port, BootPin_Pin) == GPIO_PIN_RESET) {
-		// pin is not seet, we want to jump to the application
+	uint16_t reg_1, reg_2;
+
+	HAL_PWR_EnableBkUpAccess();
+	reg_1 = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
+	reg_2 = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR2);
+	uint16_t firstIteration = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR3);
+	if (!firstIteration) {
+		reg_1 = 1;
+		reg_2 = 1;
+	} else {
+		reg_1 = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
+		reg_2 = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR2);
+		HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0);
+		HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR2, 0);
+
+	}
+
+	HAL_PWR_DisableBkUpAccess();
+
+	if (reg_1 == 0) {
+		myprintf("Jumping to application without flashing\n");
 		fw_step = FW_FINISH;
 	} else {
-		// communicate with arduino to pull the line down
-		HAL_GPIO_WritePin(BootIrq_GPIO_Port, BootIrq_Pin, GPIO_PIN_SET);
-		HAL_Delay(200);
-		HAL_GPIO_WritePin(BootIrq_GPIO_Port, BootIrq_Pin, GPIO_PIN_RESET);
+		if (reg_2 == 0 && firstIteration != 0) {
+			myprintf("Flashing and jumping to uploaded firmware\n");
+			sprintf(fileName, "%s", firmwareName);
+		} else {
+			myprintf("Flashing and jumping to initial firmware\n");
+		}
 	}
 
   /* USER CODE END 2 */
@@ -258,7 +281,7 @@ int main(void)
 			case FW_READ:
 				{
 				 		// opens the sd card
-					if (f_mount(&FS, "", 0) == FR_OK)
+					if (f_mount(&FS, "", 1) == FR_OK)
 					{
 						if (f_open(&F, fileName, FA_READ) == FR_OK)
 						{
@@ -367,8 +390,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 4;
